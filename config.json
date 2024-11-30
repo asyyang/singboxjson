@@ -1,0 +1,160 @@
+{
+    "log": {
+      "level": "info",
+      "disabled": false,
+      "timestamp": true
+    },
+    "dns": {
+      "servers": [
+        {
+          "tag": "default-dns",
+          "address": "114.114.114.114",
+          "detour": "➡️直连"
+        },
+        {
+          "tag": "system-dns",
+          "address": "192.168.3.1",
+          "detour": "➡️直连"
+        },
+        {
+          "tag": "block-dns",
+          "address": "rcode://name_error"
+        },
+        {
+          "tag": "google-dns",
+          "address": "https://8.8.8.8/dns-query",
+          "address_resolver": "system-dns",
+          "address_strategy": "ipv4_only",
+          "strategy": "ipv4_only",
+          "client_subnet": "1.18.128.1"
+        },
+        {
+          "tag": "ali-dns",
+          "address": "223.5.5.5",
+          "strategy": "prefer_ipv4",
+          "detour": "➡️直连"
+        }
+      ],
+      "rules": [
+        { "outbound": "any", "server": "default-dns" },
+        { "clash_mode": "direct", "server": "default-dns" },
+        { "clash_mode": "global", "server": "google-dns" },
+        { "rule_set": ["geosite"], "server": "default-dns" } 
+      ],
+      "strategy": "prefer_ipv4",
+      "disable_cache": false,
+      "disable_expire": false,
+      "independent_cache": false,
+      "final": "google-dns"
+    },
+
+    "inbounds": [
+      {
+        "type": "direct",
+        "tag": "dns-in",
+        "listen": "::",
+        "listen_port": 5333
+      },
+      {
+        "type": "mixed",
+        "tag": "mixed-in",
+        "listen": "::",
+        "listen_port": 5330,
+        "sniff": true,
+        "users": []
+      },
+      {
+        "type": "redirect",
+        "tag": "redirect-in",
+        "listen": "::",
+        "listen_port": 5331,
+        "sniff": true,
+        "sniff_override_destination": false
+      },
+      {
+        "type": "tproxy",
+        "tag": "tproxy-in",
+        "listen": "::",
+        "listen_port": 5332,
+        "tcp_fast_open": true,
+        "udp_fragment": true,
+        "sniff": true,
+        "sniff_override_destination": false
+      }
+    ],
+
+    "outbounds": [
+
+      { "tag": "➡️直连", "type": "direct" },
+      { "tag": "dns-out","type": "dns" },
+      { "tag": "block-out","type": "block" },
+
+      { "tag": "🚀手动选择", "type": "selector", "outbounds": ["{all}","♻️自动选择"],"default": "♻️自动选择"},
+      { "tag": "♻️自动选择", "type": "urltest", "outbounds": ["{all}"], "filter": [{ "action": "exclude", "keywords": ["网站|地址|剩余|过期|时间|有效"] }], "url": "http://www.gstatic.com/generate_204", "interval": "10m", "tolerance": 50 },
+      { "tag": "🤖cnprohibited", "type": "selector","outbounds": ["🇺🇲美国手动","🇺🇲美国自动","🇭🇰香港手动","🇭🇰香港自动","🚀手动选择"] },      
+      { "tag": "🇺🇲美国手动", "type": "selector", "outbounds": ["{all}"], "filter": [{ "action": "include", "keywords": ["🇺🇸|US|us|美国|美|United States"] }, { "action": "exclude", "keywords": ["香港|港|HK|hk|HongKong"] }] },
+      { "tag": "🇺🇲香港手动", "type": "selector", "outbounds": ["{all}"], "filter": [{ "action": "include", "keywords": ["🇭🇰|HK|hk|香港|港|HongKong"] }, { "action": "exclude", "keywords": ["🇺🇸|US|us|美国|美|United States"] }] },
+      { "tag": "🇭🇰美国自动", "type": "urltest", "outbounds": ["{all}"], "filter": [{ "action": "include", "keywords": ["🇺🇸|US|us|美国|美|United States"] }], "url": "http://www.gstatic.com/generate_204", "interval": "10m", "tolerance": 50 },
+      { "tag": "🇭🇰香港自动", "type": "urltest", "outbounds": ["{all}"], "filter": [{ "action": "include", "keywords": ["🇭🇰|HK|hk|香港|港|HongKong"] }], "url": "http://www.gstatic.com/generate_204", "interval": "10m", "tolerance": 50 },
+      { "tag": "GLOBAL", "type": "selector", "outbounds": ["🚀手动选择","➡️直连"] }
+
+
+
+    ],
+  
+    "route": {
+      "rule_set": [
+        {
+          "type": "remote",
+          "tag": "geoip",
+          "format": "binary",
+          "url": "https://github.com/DustinWin/ruleset_geodata/releases/download/sing-box-ruleset/cnip.srs",
+          "download_detour": "🚀手动选择"
+        },
+        {
+          "type": "remote",
+          "tag": "geosite",
+          "format": "binary",
+          "url": "https://github.com/DustinWin/ruleset_geodata/releases/download/sing-box-ruleset/cn.srs",
+          "download_detour": "🚀手动选择"
+        },
+        {
+          "type": "local",
+          "tag": "cnprohibited",
+          "format": "binary",
+          "path": "/etc/sing-box/cnped4.srs"
+        }
+      ],
+
+      "rules": [
+        { "type": "logical", "mode": "or", "rules": [{ "port": 53 }, { "protocol": "dns" }], "outbound": "dns-out" },
+        { "clash_mode": "Direct","outbound": "➡️直连" },
+        { "clash_mode": "global", "outbound": "GLOBAL" },
+        { "domain_suffix": ["asyy.fun", "cigar.us.kg", "yyxl.us.kg"], "outbound": "➡️直连" } ,
+        { "domain": ["clash.razord.top", "yacd.metacubex.one", "yacd.haishan.me", "d.metacubex.one"], "outbound": "➡️直连" }, 
+        { "rule_set": ["geoip","geosite"], "outbound": "➡️直连" }, 
+        { "rule_set": ["cnprohibited"], "outbound": "🤖cnprohibited" },
+        { "protocol": ["quic"], "outbound": "block-out" }
+      ],
+      "final": "🚀手动选择",
+      "auto_detect_interface": true
+    },
+
+    "experimental": {
+      "cache_file": {
+        "path": "/etc/sing-box/cache.db",
+        "store_fakeip": false,
+        "enabled": true
+      },
+      "clash_api": {
+        "external_controller": "0.0.0.0:9090",
+        "external_ui_download_url": "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip",
+        "secret": "",
+        "default_mode": "rule",
+        "external_ui_download_detour": "♻️自动选择",
+        "external_ui": "/etc/sing-box/ui"
+      }
+    }
+  } 
+
+  
